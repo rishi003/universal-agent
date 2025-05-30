@@ -1,0 +1,130 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# pipenv
+Pipfile.lock
+
+# Poetry
+poetry.lock
+
+# pyenv
+.python-version
+
+# pip-tools
+*.txt
+
+# PEP 582; used by e.g. pdm
+__pypackages__/
+
+# pytest
+.cache/
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Coverage reports
+htmlcov/
+.coverage
+.tox/
+noxfile_.*
+noxfile.py
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# Logs and local output
+*.log
+logs/
+*.tmp
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# SQLite
+*.sqlite3
+*.db
+
+# dotenv
+.env
+.env.*
+*.env
+
+# AWS credentials/config (only if local)
+.aws/
+
+# FastAPI / Starlette / Uvicorn specific (optional)
+instance/
+*.pid
+*.pid.lock
+
+# Local secrets and debug
+secrets.yaml
+debug.log
