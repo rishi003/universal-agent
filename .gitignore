@@ -129,3 +129,5 @@ debug.log
 # App data
 .data
 .files
+acme
+certs

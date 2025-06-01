@@ -1,28 +1,81 @@
+version: '3.8'
+
 services:
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy:alpine
+    container_name: nginx-proxy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./certs:/etc/nginx/certs
+      - ./vhost.d:/etc/nginx/vhost.d
+      - ./html:/usr/share/nginx/html
+      # Uncomment below line if you want to add custom nginx config
+      # - ./nginx.conf:/etc/nginx/conf.d/custom.conf:ro
+    labels:
+      - "com.github.nginx-proxy.nginx=true"
+    networks:
+      - proxy
+
+  acme-companion:
+    image: nginxproxy/acme-companion
+    container_name: nginx-proxy-acme
+    restart: always
+    depends_on:
+      - nginx-proxy
+    environment:
+      - DEFAULT_EMAIL=admin@chanim.online
+      - NGINX_PROXY_CONTAINER=nginx-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./certs:/etc/nginx/certs
+      - ./vhost.d:/etc/nginx/vhost.d
+      - ./html:/usr/share/nginx/html
+      - ./acme:/etc/acme.sh
+    networks:
+      - proxy
+
   universal-agent:
     build: .
+    container_name: universal-agent
     env_file:
       - .env
     volumes:
       - .:/app
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     environment:
       - PYTHONUNBUFFERED=1
+      - VIRTUAL_HOST=chanim.online
+      - VIRTUAL_PORT=8000
+      - LETSENCRYPT_HOST=chanim.online
+      - LETSENCRYPT_EMAIL=admin@chanim.online
     depends_on:
       prisma-manager:
         condition: service_completed_successfully
+    networks:
+      - proxy
+
   prisma-manager:
     build:
       context: ./prisma-manager
       dockerfile: Dockerfile
+    container_name: prisma-manager
     env_file:
       - .env
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - proxy
+
   postgres:
     image: postgres:16
+    container_name: postgres
     volumes:
       - ./.data/postgres:/var/lib/postgresql/data
     environment:
@@ -36,12 +89,22 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - proxy
+
   localstack:
     image: localstack/localstack:latest
+    container_name: localstack
     environment:
-      SERVICES: s3
+      - SERVICES=s3
     ports:
       - 4566:4566
     volumes:
       - ./localstack-script.sh:/etc/localstack/init/ready.d/script.sh
       - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: false
