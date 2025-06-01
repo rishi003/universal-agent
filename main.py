@@ -5,11 +5,13 @@ with the various agents available in the system.
 """
 
 import chainlit as cl
+from chainlit.types import ThreadDict
 from dotenv import load_dotenv
 from typing import Dict, Optional
 import logging
-from app.agents import IdeationAgent, IdeaAnalysisAgent
-
+from app.agents import universal_workflow
+from llama_index.core.memory import Memory
+from llama_index.core.llms import ChatMessage, MessageRole
 
 # Configure logging
 logging.basicConfig(
@@ -43,24 +45,67 @@ def oauth_callback(
     return default_user
 
 
+@cl.on_chat_start
+async def on_chat_start():
+    """Initialize the chat session."""
+    logger.info("Starting new chat session")
+    memory = Memory.from_defaults(session_id="chainlit_session", token_limit=40000)
+    cl.user_session.set("memory", memory)
+
+
 @cl.on_message
-async def main(message: cl.Message):
-    """Handle incoming messages from users.
+async def on_message(message: cl.Message):
+    """Handle incoming messages from users."""
+    await process_message(message)
 
-    This function processes user messages and routes them to the
-    appropriate agent for processing.
 
-    Args:
-        message: The incoming message from the user
-    """
+@cl.on_chat_resume
+async def on_chat_resume(thread: ThreadDict):
+    """Handle resuming a chat session."""
+    logger.info(f"Resuming chat session for thread")
+
+    memory = Memory.from_defaults(session_id=thread.get("id"), token_limit=40000)
+    root_messages = [m for m in thread["steps"] if m["parentId"] == None]
+
+    for message in root_messages:
+        if message["type"] == "user_message":
+            memory.put(ChatMessage(role=MessageRole.USER, content=message["output"]))
+        else:
+            memory.put(
+                ChatMessage(role=MessageRole.ASSISTANT, content=message["output"])
+            )
+
+    cl.user_session.set("memory", memory)
+
+    await cl.Message(
+        content="Welcome back! Resuming your previous conversation."
+    ).send()
+
+
+async def process_message(message: cl.Message):
+    """Process incoming messages and generate responses."""
     try:
         logger.info(f"Processing message: {message.content[:100]}...")
 
-        # Use the IdeationAgent to process the message
-        response = IdeationAgent.kickoff(message.content)
+        # Create a message to show processing has started
+        processing_msg = cl.Message(content="🤖 Processing your request...")
+        await processing_msg.send()
 
-        # Send the response back to the user
-        await cl.Message(content=response.raw).send()
+        # Get memory
+        memory = cl.user_session.get("memory")
+
+        # Add current message to memory
+        memory.put(ChatMessage(role=MessageRole.USER, content=message.content))
+
+        # Use the ManagerAgent to process the message with streaming
+        response = await universal_workflow.run_streaming(message.content, memory)
+
+        # Add response to memory
+        memory.put(ChatMessage(role=MessageRole.ASSISTANT, content=response))
+
+        # Update the processing message with the final response
+        processing_msg.content = response
+        await processing_msg.update()
 
         logger.info("Message processed successfully")
 

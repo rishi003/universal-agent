@@ -128,3 +128,7 @@ instance/
 # Local secrets and debug
 secrets.yaml
 debug.log
+
+# App data
+.data
+.files

@@ -21,6 +21,7 @@ class AgentType(str, Enum):
 
     IDEATION = "ideation"
     IDEA_ANALYSIS = "idea_analysis"
+    MANAGER = "manager"
 
 
 class AgentProfile(BaseModel):

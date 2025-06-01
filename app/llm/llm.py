@@ -4,7 +4,7 @@ This module handles the setup and configuration of the language model
 used by all agents in the application.
 """
 
-from crewai import LLM
+from llama_index.llms.openai import OpenAI
 from app.core import CONFIG
 import logging
 
@@ -15,11 +15,11 @@ __all__ = ["llm", "get_llm"]
 logger = logging.getLogger(__name__)
 
 
-def get_llm() -> LLM:
+def get_llm() -> OpenAI:
     """Get a configured LLM instance.
 
     Returns:
-        Configured CrewAI LLM instance
+        Configured LlamaIndex OpenAI LLM instance using OpenRouter
 
     Raises:
         ValueError: If required configuration is missing
@@ -28,13 +28,12 @@ def get_llm() -> LLM:
         if not CONFIG.openrouter_api_key:
             raise ValueError("OpenRouter API key is required")
 
-        if not CONFIG.openrouter_base_url:
-            raise ValueError("OpenRouter base URL is required")
-
-        return LLM(
-            model="openrouter/openai/gpt-4.1",
-            base_url=CONFIG.openrouter_base_url,
+        return OpenAI(
+            model=CONFIG.model_name,
             api_key=CONFIG.openrouter_api_key,
+            api_base=CONFIG.openrouter_base_url,
+            temperature=CONFIG.temperature,
+            max_tokens=4096,
         )
     except Exception as e:
         logger.error(f"Failed to initialize LLM: {e}")

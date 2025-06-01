@@ -7,7 +7,7 @@ the application, including base agent classes and common interfaces.
 
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
-from crewai import Agent
+from llama_index.core.agent.workflow import FunctionAgent, AgentWorkflow
 from pydantic import BaseModel
 
 from .types import AgentProfile
@@ -44,23 +44,25 @@ class BaseAgent(ABC):
         self.config = config
         self._agent = self._create_agent()
 
-    def _create_agent(self) -> Agent:
+    def _create_agent(self) -> FunctionAgent:
         """
-        Create the underlying CrewAI agent instance.
+        Create the underlying LlamaIndex FunctionAgent instance.
 
         Returns:
-            Configured CrewAI Agent instance
+            Configured LlamaIndex FunctionAgent instance
         """
-        return Agent(
-            role=self.config.profile.role,
-            goal=self.config.profile.goal,
-            backstory=self.config.profile.backstory,
+        return FunctionAgent(
+            name=self.config.profile.role.replace(" ", ""),
+            description=self.config.profile.goal,
+            system_prompt=self.config.profile.backstory,
             llm=self.config.llm,
+            tools=[],
+            can_handoff_to=[],
         )
 
     @property
-    def agent(self) -> Agent:
-        """Get the underlying CrewAI agent instance."""
+    def agent(self) -> FunctionAgent:
+        """Get the underlying LlamaIndex FunctionAgent instance."""
         return self._agent
 
     @abstractmethod
@@ -80,7 +82,7 @@ class BaseAgent(ABC):
         """
         Delegate attribute access to the underlying agent.
 
-        This allows the BaseAgent to act as a proxy to the CrewAI Agent,
+        This allows the BaseAgent to act as a proxy to the LlamaIndex FunctionAgent,
         maintaining backward compatibility while adding our abstractions.
         """
         return getattr(self._agent, name)

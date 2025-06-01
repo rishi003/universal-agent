@@ -1,11 +1,16 @@
-"""Agents module for the universal agent application.
+"""Agent module initialization.
 
-This module provides all available agents for idea generation,
-analysis, and other specialized tasks.
+This module exports the main agents used in the application.
+The agents are now implemented using LlamaIndex AgentWorkflow
+for multi-agent collaboration.
 """
 
-from .ideation_agent import IdeationAgent
-from .idea_analysis_agent import IdeaAnalysisAgent
-from .base_implementation import create_agent
+from .workflow import (
+    universal_workflow,
+    UniversalAgentWorkflow,
+)
 
-__all__ = ["IdeationAgent", "IdeaAnalysisAgent", "create_agent"]
+__all__ = [
+    "universal_workflow",
+    "UniversalAgentWorkflow",
+]
