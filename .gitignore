@@ -46,9 +46,6 @@ poetry.lock
 # pyenv
 .python-version
 
-# pip-tools
-*.txt
-
 # PEP 582; used by e.g. pdm
 __pypackages__/
 
