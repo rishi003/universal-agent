@@ -8,18 +8,15 @@ from llama_index.core.agent.workflow import (
     FunctionAgent,
     AgentWorkflow,
     AgentOutput,
-    ToolCallResult,
     ToolCall,
+    ToolCallResult,
 )
 from llama_index.core.workflow import Context
 from llama_index.core.memory import Memory
 from llama_index.core.llms import ChatMessage, MessageRole
 from app.llm import llm
-from app.agents.ideation_agent.profile import ideation_agent_profile
-from app.agents.idea_analysis_agent.profile import idea_analysis_agent_profile
-from app.agents.manager_agent.profile import manager_agent_profile
-from typing import Dict, List, Any
-import asyncio
+from typing import List
+from .agent_factory import create_agents
 
 
 # State management tools
@@ -51,48 +48,8 @@ class UniversalAgentWorkflow:
 
     def __init__(self):
         """Initialize the multi-agent workflow."""
-        self.agents = self._create_agents()
+        self.agents = create_agents(llm, [save_ideas, save_analysis])
         self.workflow = self._create_workflow()
-
-    def _create_agents(self) -> List[FunctionAgent]:
-        """Create all agents for the workflow including the ManagerAgent."""
-        # Manager Agent
-        manager_agent = FunctionAgent(
-            name="ManagerAgent",
-            description="Oversees activities, maintains plans, and coordinates between agents.",
-            system_prompt=manager_agent_profile.backstory,
-            llm=llm,
-            tools=[save_ideas, save_analysis],
-            can_handoff_to=["IdeationAgent", "IdeaAnalysisAgent"],
-        )
-
-        # Ideation Agent
-        ideation_agent = FunctionAgent(
-            name="IdeationAgent",
-            description="Generates innovative ideas using recursive thinking and creative processes.",
-            system_prompt=(
-                f"{ideation_agent_profile.backstory} "
-                "After your ideation work, hand off control back to the ManagerAgent."
-            ),
-            llm=llm,
-            tools=[save_ideas],
-            can_handoff_to=["ManagerAgent", "IdeaAnalysisAgent"],
-        )
-
-        # Idea Analysis Agent
-        analysis_agent = FunctionAgent(
-            name="IdeaAnalysisAgent",
-            description="Evaluates and analyzes business ideas for viability and potential.",
-            system_prompt=(
-                f"{idea_analysis_agent_profile.backstory} "
-                "After your analysis, hand off control back to the ManagerAgent."
-            ),
-            llm=llm,
-            tools=[save_analysis],
-            can_handoff_to=["ManagerAgent", "IdeationAgent"],
-        )
-
-        return [manager_agent, ideation_agent, analysis_agent]
 
     def _create_workflow(self) -> AgentWorkflow:
         """Create the AgentWorkflow with ManagerAgent as the root."""

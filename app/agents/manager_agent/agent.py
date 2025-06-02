@@ -197,31 +197,48 @@ async def record_agent_result(
     )
 
 
+import os
+import importlib
+from app.core.types import AgentProfile
+
+
 async def get_available_agents(ctx: Context) -> str:
     """Tool for getting information about available agents and their capabilities."""
-    agents_info = """
-Available Agents and Their Capabilities:
+    agents_info = "Available Agents and Their Capabilities:\n\n"
+    agent_count = 1
 
-1. **IdeationAgent**
-   - Role: Generates innovative ideas using recursive thinking and creative processes
-   - Best for: Brainstorming, creative problem solving, generating multiple solution options
-   - Can hand off to: IdeaAnalysisAgent
+    agents_dir = os.path.dirname(os.path.dirname(__file__))
+    for agent_folder in os.listdir(agents_dir):
+        if not agent_folder.endswith("_agent"):
+            continue
 
-2. **IdeaAnalysisAgent** 
-   - Role: Evaluates and analyzes business ideas for viability and potential
-   - Best for: Feasibility analysis, risk assessment, business evaluation, market analysis
-   - Can hand off to: IdeationAgent
+        profile_path = os.path.join(agents_dir, agent_folder, "profile.py")
+        if not os.path.isfile(profile_path):
+            continue
 
-3. **ManagerAgent** (You)
-   - Role: Oversees activities, maintains plans, coordinates between agents
-   - Best for: Project coordination, planning, user guidance, workflow management
-   - Can hand off to: Any agent based on task requirements
+        try:
+            module_name = f"app.agents.{agent_folder}.profile"
+            module = importlib.import_module(module_name)
 
+            profile_var_name = f"{agent_folder.replace('_agent', '')}_agent_profile"
+            if hasattr(module, profile_var_name):
+                profile: AgentProfile = getattr(module, profile_var_name)
+                agents_info += f"{agent_count}. **{profile.role}**\n"
+                agents_info += f"   - Role: {profile.role}\n"
+                agents_info += f"   - Goal: {profile.goal}\n"
+                agents_info += "   - Best for: " + profile.goal.split(".")[0] + "\n"
+                agents_info += (
+                    "   - Can hand off to: [To be determined dynamically]\n\n"
+                )
+                agent_count += 1
+        except Exception as e:
+            print(f"Error loading profile for {agent_folder}: {str(e)}")
+
+    agents_info += """
 Agent Selection Guidelines:
-- For creative tasks requiring new ideas: Use IdeationAgent
-- For analysis and evaluation tasks: Use IdeaAnalysisAgent  
+- For tasks aligning with a specific agent's role and goal, use that agent
 - For complex tasks requiring multiple steps: Use ManagerAgent to coordinate
-- For tasks requiring both ideation and analysis: Start with IdeationAgent, then hand off to IdeaAnalysisAgent
+- For tasks requiring multiple agents: Start with the most relevant agent, then hand off as needed
 """
 
     return agents_info
