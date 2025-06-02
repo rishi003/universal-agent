@@ -1,19 +1,20 @@
 # Universal Agent
 
-A modular and extensible agent system built with CrewAI for autonomous idea generation and analysis.
+A modular and extensible agent system built with CrewAI for autonomous idea generation, analysis, and execution across various domains.
 
 ## Overview
 
-The Universal Agent is a sophisticated system that leverages multiple specialized agents to generate, analyze, and refine innovative ideas. The application is built with a focus on clean architecture, maintainability, and extensibility.
+The Universal Agent is a sophisticated system that leverages multiple specialized agents to generate, analyze, refine, and execute innovative ideas across different business domains. The application is built with a focus on clean architecture, maintainability, and extensibility, utilizing Chainlit for an interactive user interface.
 
 ## Architecture
 
 ### Core Components
 
 - **Core Module** (`app/core/`): Foundational components including configuration, base classes, types, and factory patterns
-- **Agents Module** (`app/agents/`): Specialized agents for different tasks
+- **Agents Module** (`app/agents/`): Specialized agents for different tasks and domains
 - **LLM Module** (`app/llm/`): Language model configuration and utilities
 - **Prompts Module** (`app/prompts/`): Agent-specific prompts and instructions
+- **UI Module** (`public/`): Custom CSS and JavaScript for the Chainlit interface
 
 ### Design Patterns
 
@@ -28,101 +29,82 @@ The Universal Agent is a sophisticated system that leverages multiple specialize
 ### IdeationAgent
 - **Purpose**: Autonomous idea generation and recursive refinement
 - **Specialization**: Creative thinking, iterative improvement, comprehensive ideation
-- **Process**: Minimum 25 iterations of self-directed analysis and refinement
 
 ### IdeaAnalysisAgent
 - **Purpose**: Business idea evaluation and optimization
 - **Specialization**: Market analysis, feasibility assessment, strategic recommendations
-- **Output**: Structured analysis with viability rankings and actionable insights
+
+### ProductManagerAgent
+- **Purpose**: Product development and management
+- **Specialization**: Feature prioritization, roadmap planning, user story creation
+
+### StrategicAdvisorAgent
+- **Purpose**: High-level strategic planning and decision-making
+- **Specialization**: Market trends analysis, competitive positioning, long-term strategy formulation
+
+### LandingPageDesignerAgent
+- **Purpose**: Design and optimization of landing pages
+- **Specialization**: UI/UX design, conversion optimization, A/B testing strategies
+
+### CTOAgent
+- **Purpose**: Technical leadership and architecture planning
+- **Specialization**: Technology stack selection, scalability planning, technical debt management
+
+### AdvertisingStrategistAgent
+- **Purpose**: Development and execution of advertising campaigns
+- **Specialization**: Target audience analysis, ad copy creation, media planning
+
+### ManagerAgent
+- **Purpose**: Orchestration and coordination of other agents
+- **Specialization**: Task delegation, progress monitoring, conflict resolution
 
 ## Project Structure
 
 ```
 app/
 ├── core/                   # Core foundational components
-│   ├── __init__.py        # Module exports
-│   ├── base.py            # Base classes and registry
-│   ├── config.py          # Application configuration
-│   ├── factory.py         # Factory patterns
-│   └── types.py           # Type definitions
-├── agents/                # Agent implementations
-│   ├── __init__.py        # Agent exports
-│   ├── base_implementation.py  # Agent utilities
-│   ├── ideation_agent/    # Ideation agent module
-│   │   ├── __init__.py
-│   │   ├── agent.py       # Agent implementation
-│   │   └── profile.py     # Agent profile
-│   └── idea_analysis_agent/  # Analysis agent module
-│       ├── __init__.py
-│       ├── agent.py       # Agent implementation
-│       └── profile.py     # Agent profile
-├── llm/                   # Language model configuration
-│   ├── __init__.py
-│   └── llm.py            # LLM setup and utilities
-└── prompts/              # Agent prompts
-    ├── __init__.py
-    ├── ideation_agent_prompt.py
-    └── idea_analysis_agent_prompt.py
+├── agents/                 # Agent implementations
+│   ├── ideation_agent/
+│   ├── idea_analysis_agent/
+│   ├── product_manager_agent/
+│   ├── strategic_advisor_agent/
+│   ├── landing_page_designer_agent/
+│   ├── cto_agent/
+│   ├── advertising_strategist_agent/
+│   └── manager_agent/
+├── llm/                    # Language model configuration
+└── prompts/                # Agent prompts
+public/                     # UI customization files
+prisma-manager/             # Database management (if applicable)
 ```
 
 ## Configuration
 
-The application uses environment variables for configuration:
-
-- `OPENROUTER_API_KEY`: API key for OpenRouter service
-- `OPENROUTER_BASE_URL`: Base URL for OpenRouter API (default: https://api.openrouter.ai/v1)
+The application uses environment variables for configuration. Key configurations are managed through `.chainlit/config.toml`.
 
 ## Key Features
 
-### 1. Modular Design
-- Clean separation between agents, core functionality, and configuration
-- Easy to extend with new agent types
-- Consistent patterns across all modules
+1. **Modular Design**: Easy to extend with new agent types
+2. **Type Safety**: Strong typing and runtime validation
+3. **Error Handling**: Comprehensive error handling with logging
+4. **Documentation**: Detailed docstrings and type hints
+5. **Extensibility**: Factory and registry patterns for easy expansion
+6. **Interactive UI**: Customized Chainlit interface for user interactions
 
-### 2. Type Safety
-- Pydantic models for all configuration and data structures
-- Strong typing throughout the codebase
-- Runtime validation of inputs and outputs
+## UI Customization
 
-### 3. Error Handling
-- Comprehensive error handling with logging
-- Graceful degradation for user-facing errors
-- Detailed logging for debugging and monitoring
+The Universal Agent uses Chainlit for its user interface, with custom styling and functionality:
 
-### 4. Documentation
-- Comprehensive docstrings for all modules, classes, and functions
-- Clear module-level documentation
-- Type hints for better IDE support
-
-### 5. Extensibility
-- Factory pattern for easy agent creation
-- Registry pattern for agent management
-- Base classes for consistent agent behavior
+- **Configuration**: Main UI settings in `.chainlit/config.toml`
+- **Styling**: Custom styles in `public/custom.css`
+- **Functionality**: Additional JavaScript in `public/custom.js`
 
 ## Usage
 
-### Basic Usage
-```python
-from app.agents import IdeationAgent
+Refer to individual agent modules for specific usage instructions. The application is typically run using Chainlit:
 
-# Use the agent directly
-response = IdeationAgent.kickoff("Create an AI sales assistant")
 ```
-
-### Creating Custom Agents
-```python
-from app.agents import create_agent
-from app.core.types import AgentProfile
-
-# Define a custom profile
-custom_profile = AgentProfile(
-    role="Custom Agent",
-    goal="Perform custom tasks",
-    backstory="Specialized agent for custom functionality"
-)
-
-# Create the agent
-custom_agent = create_agent(custom_profile)
+chainlit run main.py
 ```
 
 ## Development Guidelines
@@ -137,11 +119,10 @@ custom_agent = create_agent(custom_profile)
 
 ### Code Quality Standards
 
-- All modules must have comprehensive docstrings
-- Use type hints for all function parameters and return values
-- Follow the established patterns for consistency
-- Include error handling and logging where appropriate
-- Maintain backward compatibility when making changes
+- Comprehensive docstrings
+- Type hints for all functions
+- Consistent error handling and logging
+- Backward compatibility maintenance
 
 ## Dependencies
 
