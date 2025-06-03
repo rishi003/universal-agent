@@ -56,9 +56,9 @@ services:
     expose:
       - "8000"
     environment:
-      - VIRTUAL_HOST=chanim.online,www.chanim.online
+      - VIRTUAL_HOST=chanim.online
       - VIRTUAL_PORT=8000
-      - LETSENCRYPT_HOST=chanim.online,www.chanim.online
+      - LETSENCRYPT_HOST=chanim.online
       - LETSENCRYPT_EMAIL=admin@chanim.online
       - HTTPS_METHOD=noredirect            # keep HTTP-01 challenge on port 80
       - CHAINLIT_COOKIE_DOMAIN=.chanim.online
