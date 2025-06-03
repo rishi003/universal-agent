@@ -41,8 +41,8 @@ services:
     environment:
       - DEFAULT_EMAIL=admin@chanim.online
       - NGINX_PROXY_CONTAINER=nginx-proxy
-      # For initial testing (to avoid production-rate limits), uncomment:
-      # - ACME_DIRECTORY_URL=https://acme-staging-v02.api.letsencrypt.org/directory
+      # For initial testing (to avoid production-rate limits):
+      - ACME_DIRECTORY_URL=https://acme-staging-v02.api.letsencrypt.org/directory
     networks: [proxy]
 
   # ──────────────────────────────────────────────────────────────
@@ -61,10 +61,17 @@ services:
       - CHAINLIT_COOKIE_DOMAIN=.chanim.online
       - CHAINLIT_COOKIE_SAMESITE=none
       - PYTHONUNBUFFERED=1
+      - VIRTUAL_HOST=chanim.online
+      - LETSENCRYPT_HOST=chanim.online
     depends_on:
       prisma-manager:
         condition: service_completed_successfully
     networks: [proxy]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # ──────────────────────────────────────────────────────────────
   # 4) prisma-manager, postgres, localstack (unchanged)
