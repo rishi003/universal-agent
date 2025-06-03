@@ -1,6 +1,9 @@
 version: '3.8'
 
 services:
+  # ──────────────────────────────────────────────────────────────
+  # Public reverse-proxy (nginx-proxy)
+  # ──────────────────────────────────────────────────────────────
   nginx-proxy:
     image: nginxproxy/nginx-proxy:alpine
     container_name: nginx-proxy
@@ -9,73 +12,83 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - /var/run/docker.sock:/tmp/docker.sock:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/tmp/docker.sock:ro        # single read-only mount is enough
       - ./certs:/etc/nginx/certs
       - ./vhost.d:/etc/nginx/vhost.d
       - ./html:/usr/share/nginx/html
-      # Uncomment below line if you want to add custom nginx config
-      # - ./nginx.conf:/etc/nginx/conf.d/custom.conf:ro
+      # - ./nginx.conf:/etc/nginx/conf.d/custom.conf:ro  # custom config (optional)
+    environment:
+      - DEFAULT_HOST=chanim.online                      # fallback host
     labels:
-      - "com.github.nginx-proxy.nginx=true"
-    networks:
-      - proxy
+      - com.github.nginx-proxy.nginx=true
+    networks: [proxy]
 
+  # ──────────────────────────────────────────────────────────────
+  # Let’s Encrypt companion
+  # ──────────────────────────────────────────────────────────────
   acme-companion:
     image: nginxproxy/acme-companion
     container_name: nginx-proxy-acme
     restart: always
-    depends_on:
-      - nginx-proxy
-    environment:
-      - DEFAULT_EMAIL=admin@chanim.online
-      - NGINX_PROXY_CONTAINER=nginx-proxy
+    depends_on: [nginx-proxy]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./certs:/etc/nginx/certs
       - ./vhost.d:/etc/nginx/vhost.d
       - ./html:/usr/share/nginx/html
       - ./acme:/etc/acme.sh
-    networks:
-      - proxy
+    environment:
+      - DEFAULT_EMAIL=admin@chanim.online
+      - NGINX_PROXY_CONTAINER=nginx-proxy
+      # Use staging CA during first deploy / testing to avoid rate limits
+      # - ACME_DIRECTORY_URL=https://acme-staging-v02.api.letsencrypt.org/directory
+    networks: [proxy]
 
+  # ──────────────────────────────────────────────────────────────
+  # Your Chainlit (or any) app
+  # ──────────────────────────────────────────────────────────────
   universal-agent:
     build: .
     container_name: universal-agent
-    env_file:
-      - .env
+    env_file: [.env]
     volumes:
       - .:/app
     expose:
       - "8000"
     environment:
-      - PYTHONUNBUFFERED=1
+      # nginx-proxy routing & certs
       - VIRTUAL_HOST=chanim.online,www.chanim.online
       - VIRTUAL_PORT=8000
-      - HTTPS_METHOD=noredirect
       - LETSENCRYPT_HOST=chanim.online,www.chanim.online
       - LETSENCRYPT_EMAIL=admin@chanim.online
+      - HTTPS_METHOD=noredirect          # keep HTTP open until cert is issued
+
+      # Chainlit cookie settings (adjust if your app differs)
       - CHAINLIT_COOKIE_DOMAIN=.chanim.online
       - CHAINLIT_COOKIE_SAMESITE=none
+      - PYTHONUNBUFFERED=1
     depends_on:
       prisma-manager:
         condition: service_completed_successfully
-    networks:
-      - proxy
+    networks: [proxy]
 
+  # ──────────────────────────────────────────────────────────────
+  # Prisma build helper
+  # ──────────────────────────────────────────────────────────────
   prisma-manager:
     build:
       context: ./prisma-manager
       dockerfile: Dockerfile
     container_name: prisma-manager
-    env_file:
-      - .env
+    env_file: [.env]
     depends_on:
       postgres:
         condition: service_healthy
-    networks:
-      - proxy
+    networks: [proxy]
 
+  # ──────────────────────────────────────────────────────────────
+  # PostgreSQL
+  # ──────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16
     container_name: postgres
@@ -92,21 +105,22 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - proxy
+    networks: [proxy]
 
+  # ──────────────────────────────────────────────────────────────
+  # LocalStack (S3 only, optional)
+  # ──────────────────────────────────────────────────────────────
   localstack:
     image: localstack/localstack:latest
     container_name: localstack
     environment:
       - SERVICES=s3
     ports:
-      - 4566:4566
+      - "4566:4566"
     volumes:
       - ./localstack-script.sh:/etc/localstack/init/ready.d/script.sh
-      - "/var/run/docker.sock:/var/run/docker.sock"
-    networks:
-      - proxy
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks: [proxy]
 
 networks:
   proxy:
