@@ -16,7 +16,8 @@ services:
       - ./certs:/etc/nginx/certs
       - ./vhost.d:/etc/nginx/vhost.d
       - ./html:/usr/share/nginx/html
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./conf.d:/etc/nginx/conf.d
     environment:
       - DEFAULT_HOST=chanim.online        # unknown‐host → universal-agent
     labels:
