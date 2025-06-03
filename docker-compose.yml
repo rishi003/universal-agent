@@ -21,6 +21,18 @@ services:
     networks:
       - proxy
 
+  redirect-www:
+    image: nginxproxy/nginx-redirect:alpine
+    container_name: redirect-www
+    restart: always
+    environment:
+      - REDIRECT_TARGET=https://chanim.online           
+      - VIRTUAL_HOST=www.chanim.online                  
+      - LETSENCRYPT_HOST=www.chanim.online
+      - LETSENCRYPT_EMAIL=admin@chanim.online
+    networks:
+      - proxy
+
   acme-companion:
     image: nginxproxy/acme-companion
     container_name: nginx-proxy-acme
@@ -50,7 +62,7 @@ services:
       - "8000"
     environment:
       - PYTHONUNBUFFERED=1
-      - VIRTUAL_HOST=chanim.online,www.chanim.online
+      - VIRTUAL_HOST=chanim.online
       - VIRTUAL_PORT=8000
       - LETSENCRYPT_HOST=chanim.online,www.chanim.online
       - LETSENCRYPT_EMAIL=admin@chanim.online
