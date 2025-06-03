@@ -16,6 +16,7 @@ services:
       - ./certs:/etc/nginx/certs
       - ./vhost.d:/etc/nginx/vhost.d
       - ./html:/usr/share/nginx/html
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     environment:
       - DEFAULT_HOST=chanim.online        # unknown‐host → universal-agent
     labels:
@@ -56,11 +57,6 @@ services:
     expose:
       - "8000"
     environment:
-      - VIRTUAL_HOST=chanim.online
-      - VIRTUAL_PORT=8000
-      - LETSENCRYPT_HOST=chanim.online
-      - LETSENCRYPT_EMAIL=admin@chanim.online
-      - HTTPS_METHOD=noredirect            # keep HTTP-01 challenge on port 80
       - CHAINLIT_COOKIE_DOMAIN=.chanim.online
       - CHAINLIT_COOKIE_SAMESITE=none
       - PYTHONUNBUFFERED=1
@@ -77,7 +73,7 @@ services:
       context: ./prisma-manager
       dockerfile: Dockerfile
     container_name: prisma-manager
-    env_file: [.env]
+    env_file: [.env.production]
     depends_on:
       postgres:
         condition: service_healthy
@@ -93,7 +89,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-root}
       - POSTGRES_DB=${POSTGRES_DB:-postgres}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U root -d postgres"]
       interval: 10s
