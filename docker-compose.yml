@@ -50,9 +50,9 @@ services:
       - "8000"
     environment:
       - PYTHONUNBUFFERED=1
-      - VIRTUAL_HOST=chanim.online,www.chanim.online
+      - VIRTUAL_HOST=chanim.online
       - VIRTUAL_PORT=8000
-      - LETSENCRYPT_HOST=chanim.online,www.chanim.online
+      - LETSENCRYPT_HOST=chanim.online
       - LETSENCRYPT_EMAIL=admin@chanim.online
       - CHAINLIT_COOKIE_DOMAIN=.chanim.online
       - CHAINLIT_COOKIE_SAMESITE=none
