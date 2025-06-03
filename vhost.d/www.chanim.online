@@ -1,0 +1,1 @@
+nginx<br>return 301 https://chanim.online$request_uri;<br>
