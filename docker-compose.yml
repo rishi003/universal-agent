@@ -1,8 +1,8 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # ──────────────────────────────────────────────────────────────
-  # Public reverse-proxy (nginx-proxy)
+  # 1) nginx-proxy: catches all HTTP/HTTPS, proxies to the right service
   # ──────────────────────────────────────────────────────────────
   nginx-proxy:
     image: nginxproxy/nginx-proxy:alpine
@@ -12,19 +12,18 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - /var/run/docker.sock:/tmp/docker.sock:ro        # single read-only mount is enough
+      - /var/run/docker.sock:/tmp/docker.sock:ro
       - ./certs:/etc/nginx/certs
       - ./vhost.d:/etc/nginx/vhost.d
       - ./html:/usr/share/nginx/html
-      # - ./nginx.conf:/etc/nginx/conf.d/custom.conf:ro  # custom config (optional)
     environment:
-      - DEFAULT_HOST=chanim.online                      # fallback host
+      - DEFAULT_HOST=chanim.online        # unknown‐host → universal-agent
     labels:
       - com.github.nginx-proxy.nginx=true
     networks: [proxy]
 
   # ──────────────────────────────────────────────────────────────
-  # Let’s Encrypt companion
+  # 2) acme-companion: automatically issues/renews certs for both hosts
   # ──────────────────────────────────────────────────────────────
   acme-companion:
     image: nginxproxy/acme-companion
@@ -40,40 +39,38 @@ services:
     environment:
       - DEFAULT_EMAIL=admin@chanim.online
       - NGINX_PROXY_CONTAINER=nginx-proxy
-      # Use staging CA during first deploy / testing to avoid rate limits
+      # For initial testing (to avoid production-rate limits), uncomment:
       # - ACME_DIRECTORY_URL=https://acme-staging-v02.api.letsencrypt.org/directory
     networks: [proxy]
 
   # ──────────────────────────────────────────────────────────────
-  # Your Chainlit (or any) app
+  # 3) universal-agent: your Chainlit app, listening on port 8000
+  #    It advertises both hosts so nginx-proxy + acme can do their job.
   # ──────────────────────────────────────────────────────────────
   universal-agent:
     build: .
     container_name: universal-agent
     env_file: [.env]
-    volumes:
-      - .:/app
+    volumes: 
+      - ".:/app"
     expose:
       - "8000"
     environment:
-      # nginx-proxy routing & certs
       - VIRTUAL_HOST=chanim.online,www.chanim.online
       - VIRTUAL_PORT=8000
       - LETSENCRYPT_HOST=chanim.online,www.chanim.online
       - LETSENCRYPT_EMAIL=admin@chanim.online
-      - HTTPS_METHOD=noredirect          # keep HTTP open until cert is issued
-
-      # Chainlit cookie settings (adjust if your app differs)
+      - HTTPS_METHOD=noredirect            # keep HTTP-01 challenge on port 80
       - CHAINLIT_COOKIE_DOMAIN=.chanim.online
       - CHAINLIT_COOKIE_SAMESITE=none
       - PYTHONUNBUFFERED=1
     depends_on:
       prisma-manager:
-        condition: service_completed_successfully
+        condition: service_healthy
     networks: [proxy]
 
   # ──────────────────────────────────────────────────────────────
-  # Prisma build helper
+  # 4) prisma-manager, postgres, localstack (unchanged)
   # ──────────────────────────────────────────────────────────────
   prisma-manager:
     build:
@@ -86,9 +83,6 @@ services:
         condition: service_healthy
     networks: [proxy]
 
-  # ──────────────────────────────────────────────────────────────
-  # PostgreSQL
-  # ──────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16
     container_name: postgres
@@ -99,7 +93,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-root}
       - POSTGRES_DB=${POSTGRES_DB:-postgres}
     ports:
-      - ${POSTGRES_PORT:-5432}:5432
+      - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U root -d postgres"]
       interval: 10s
@@ -107,15 +101,12 @@ services:
       retries: 5
     networks: [proxy]
 
-  # ──────────────────────────────────────────────────────────────
-  # LocalStack (S3 only, optional)
-  # ──────────────────────────────────────────────────────────────
   localstack:
     image: localstack/localstack:latest
     container_name: localstack
-    environment:
+    environment: 
       - SERVICES=s3
-    ports:
+    ports: 
       - "4566:4566"
     volumes:
       - ./localstack-script.sh:/etc/localstack/init/ready.d/script.sh
