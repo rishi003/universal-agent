@@ -73,7 +73,7 @@ services:
       context: ./prisma-manager
       dockerfile: Dockerfile
     container_name: prisma-manager
-    env_file: [.env.production]
+    env_file: [.env]
     depends_on:
       postgres:
         condition: service_healthy
