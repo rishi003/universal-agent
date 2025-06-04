@@ -1,151 +1,271 @@
-# Universal Agent
+# Universal Agent 🚀🤖
 
-A modular and extensible agent system built with CrewAI for autonomous idea generation, analysis, and execution across various domains.
+A modern AI-powered agent system built with PydanticAI for autonomous idea generation, analysis, and execution across various business domains.
 
 ## Overview
 
-The Universal Agent is a sophisticated system that leverages multiple specialized agents to generate, analyze, refine, and execute innovative ideas across different business domains. The application is built with a focus on clean architecture, maintainability, and extensibility, utilizing Chainlit for an interactive user interface.
+The Universal Agent is a sophisticated system that leverages multiple specialized AI agents to generate, analyze, refine, and execute innovative ideas across different business domains. The application has been modernized with PydanticAI and features a unified workflow system with seamless agent switching capabilities via an interactive Chainlit interface.
 
-## Architecture
+## 🎯 Key Features
+
+- **8 Specialized AI Agents**: Each with unique personalities and capabilities
+- **@ Notation System**: Switch between agents using `@agent_name` 
+- **Session Persistence**: Agents remain active until explicitly switched
+- **Streaming Responses**: Real-time AI responses with PydanticAI
+- **Modern Architecture**: Built with PydanticAI, OpenRouter, and Chainlit
+- **Unified Workflow**: Single workflow system managing all agents
+
+## 🤖 Available Agents
+
+| Agent | Command | Specialization |
+|-------|---------|----------------|
+| **Manager Agent** | `@manager` | Orchestration, planning, task coordination |
+| **Ideation Agent** | `@ideation` | Creative thinking, idea generation, innovation |
+| **Idea Analysis Agent** | `@analysis` | Market evaluation, feasibility assessment |
+| **Product Manager Agent** | `@product` | Feature prioritization, roadmap planning |
+| **Strategic Advisor Agent** | `@strategic` | High-level strategy, market positioning |
+| **Landing Page Designer** | `@landing` | UI/UX design, conversion optimization |
+| **CTO Agent** | `@cto` | Technical architecture, scalability planning |
+| **Advertising Strategist** | `@advertising` | Campaign development, ad strategy |
+
+## 🏗️ Architecture
 
 ### Core Components
 
-- **Core Module** (`app/core/`): Foundational components including configuration, base classes, types, and factory patterns
-- **Agents Module** (`app/agents/`): Specialized agents for different tasks and domains
-- **LLM Module** (`app/llm/`): Language model configuration and utilities
-- **Prompts Module** (`app/prompts/`): Agent-specific prompts and instructions
-- **UI Module** (`public/`): Custom CSS and JavaScript for the Chainlit interface
+- **Unified Workflow System** (`app/agents/workflow.py`): Single AgentWorkflow class managing all agents
+- **PydanticAI Integration** (`app/llm/`): Modern AI framework with OpenRouter support
+- **Agent Profiles** (`app/agents/*/profile.py`): Agent personalities and capabilities
+- **Base Implementation** (`app/agents/base_implementation.py`): Shared agent functionality
+- **Session Management**: Persistent agent switching with memory
 
 ### Design Patterns
 
-1. **Factory Pattern**: Consistent agent creation through `create_agent()` utility
-2. **Base Classes**: Abstract base classes for common functionality
-3. **Type Safety**: Pydantic models for configuration and data validation
-4. **Registry Pattern**: Centralized agent and profile management
-5. **Modular Architecture**: Clear separation of concerns across modules
+1. **Unified Workflow**: Single workflow system handling all agent interactions
+2. **Agent Switching**: Parse `@agent_name` notation for seamless transitions
+3. **Session Persistence**: Remember active agent across conversation
+4. **Streaming Responses**: Real-time token streaming with PydanticAI
+5. **Memory Integration**: LlamaIndex memory for conversation history
 
-## Available Agents
+## 🚀 Getting Started
 
-### IdeationAgent
-- **Purpose**: Autonomous idea generation and recursive refinement
-- **Specialization**: Creative thinking, iterative improvement, comprehensive ideation
+### Prerequisites
 
-### IdeaAnalysisAgent
-- **Purpose**: Business idea evaluation and optimization
-- **Specialization**: Market analysis, feasibility assessment, strategic recommendations
+- Python 3.13+
+- OpenRouter API Key
+- UV package manager (recommended)
 
-### ProductManagerAgent
-- **Purpose**: Product development and management
-- **Specialization**: Feature prioritization, roadmap planning, user story creation
+### Installation
 
-### StrategicAdvisorAgent
-- **Purpose**: High-level strategic planning and decision-making
-- **Specialization**: Market trends analysis, competitive positioning, long-term strategy formulation
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd universal-agent
+   ```
 
-### LandingPageDesignerAgent
-- **Purpose**: Design and optimization of landing pages
-- **Specialization**: UI/UX design, conversion optimization, A/B testing strategies
+2. **Install dependencies**
+   ```bash
+   uv sync
+   # or
+   pip install -r requirements.txt
+   ```
 
-### CTOAgent
-- **Purpose**: Technical leadership and architecture planning
-- **Specialization**: Technology stack selection, scalability planning, technical debt management
+3. **Configure environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your OpenRouter API key
+   ```
 
-### AdvertisingStrategistAgent
-- **Purpose**: Development and execution of advertising campaigns
-- **Specialization**: Target audience analysis, ad copy creation, media planning
+4. **Run the application**
+   ```bash
+   chainlit run main.py
+   # or specify port
+   chainlit run main.py --port 8000
+   ```
 
-### ManagerAgent
-- **Purpose**: Orchestration and coordination of other agents
-- **Specialization**: Task delegation, progress monitoring, conflict resolution
+## 💬 Usage Examples
 
-## Project Structure
+### Basic Conversation
+```
+User: "Help me brainstorm app ideas"
+→ Manager Agent (default)
+
+User: "@ideation give me 5 startup ideas for AI tools"
+→ Switches to Ideation Agent
+
+User: "Can you expand on the first idea?"
+→ Still uses Ideation Agent (session persistence)
+
+User: "@cto how would I build this technically?"
+→ Switches to CTO Agent
+```
+
+### Agent Switching Commands
+- `@manager` - Coordinate and plan complex projects
+- `@ideation` - Generate creative ideas and innovations
+- `@analysis` - Evaluate business ideas and market fit
+- `@product` - Plan product features and roadmaps
+- `@strategic` - Develop high-level business strategy
+- `@landing` - Design landing pages and optimize conversion
+- `@cto` - Plan technical architecture and implementation
+- `@advertising` - Create marketing campaigns and ad strategies
+
+## 🔧 Technical Implementation
+
+### PydanticAI Migration
+
+The system has been migrated from LlamaIndex to PydanticAI for improved performance and modern AI capabilities:
+
+- **Before**: Multiple LlamaIndex FunctionAgents with separate workflows
+- **After**: Single PydanticAI AgentWorkflow with unified agent management
+- **Benefits**: Cleaner code, better streaming, improved session management
+
+### Key Files
 
 ```
 app/
-├── core/                   # Core foundational components
-├── agents/                 # Agent implementations
-│   ├── ideation_agent/
-│   ├── idea_analysis_agent/
-│   ├── product_manager_agent/
-│   ├── strategic_advisor_agent/
-│   ├── landing_page_designer_agent/
-│   ├── cto_agent/
-│   ├── advertising_strategist_agent/
-│   └── manager_agent/
-├── llm/                    # Language model configuration
-└── prompts/                # Agent prompts
-public/                     # UI customization files
-prisma-manager/             # Database management (if applicable)
+├── agents/
+│   ├── workflow.py              # Unified workflow system
+│   ├── base_implementation.py   # PydanticAI agent wrapper
+│   ├── __init__.py             # Main exports
+│   └── */profile.py            # Agent personalities
+├── llm/
+│   └── llm.py                  # PydanticAI + OpenRouter setup
+└── core/
+    └── config.py               # Configuration management
+main.py                         # Chainlit application entry
 ```
 
-## Configuration
+### Configuration
 
-The application uses environment variables for configuration. Key configurations are managed through `.chainlit/config.toml`.
-
-## Key Features
-
-1. **Modular Design**: Easy to extend with new agent types
-2. **Type Safety**: Strong typing and runtime validation
-3. **Error Handling**: Comprehensive error handling with logging
-4. **Documentation**: Detailed docstrings and type hints
-5. **Extensibility**: Factory and registry patterns for easy expansion
-6. **Interactive UI**: Customized Chainlit interface for user interactions
-
-## UI Customization
-
-The Universal Agent uses Chainlit for its user interface, with custom styling and functionality:
-
-- **Configuration**: Main UI settings in `.chainlit/config.toml`
-- **Styling**: Custom styles in `public/custom.css`
-- **Functionality**: Additional JavaScript in `public/custom.js`
-
-## Usage
-
-Refer to individual agent modules for specific usage instructions. The application is typically run using Chainlit:
-
-```
-chainlit run main.py
+Environment variables in `.env`:
+```bash
+OPENROUTER_API_KEY=your_api_key_here
+MODEL_NAME=anthropic/claude-3.5-sonnet
+# Add other configuration as needed
 ```
 
-## Development Guidelines
+## 🎨 UI Customization
+
+The application uses Chainlit with custom styling:
+
+- **Configuration**: `.chainlit/config.toml`
+- **Welcome Message**: `chainlit.md`
+- **Custom Assets**: `public/` directory
+- **Theming**: Supports light/dark modes
+
+## 🔄 Workflow System
+
+### Session Management
+- **Default Agent**: Manager Agent on startup
+- **Agent Persistence**: Chosen agent remains active until switched
+- **Memory Integration**: Conversation history maintained across agents
+- **Streaming**: Real-time response streaming for all agents
+
+### Agent Switching Logic
+```python
+# Parse @ notation
+if message.startswith('@'):
+    agent_name = extract_agent_name(message)
+    session.current_agent = agent_name
+    
+# Use current agent
+response = await workflow.run_streaming(
+    message, session.current_agent, memory
+)
+```
+
+## 🧪 Development
 
 ### Adding New Agents
 
-1. Create a new directory under `app/agents/`
-2. Define the agent profile in `profile.py`
-3. Implement the agent in `agent.py` using `create_agent()`
-4. Add module documentation and exports in `__init__.py`
-5. Update the main agents `__init__.py` to include the new agent
+1. **Create agent profile**
+   ```python
+   # app/agents/new_agent/profile.py
+   from app.core.types import AgentProfile
+   
+   new_agent_profile = AgentProfile(
+       role="New Agent",
+       goal="Specific purpose",
+       backstory="Agent personality and capabilities"
+   )
+   ```
 
-### Code Quality Standards
+2. **Update workflow**
+   ```python
+   # Add to app/agents/workflow.py
+   AGENT_PROFILES = {
+       "new": new_agent_profile,
+       # ... other agents
+   }
+   ```
 
-- Comprehensive docstrings
-- Type hints for all functions
-- Consistent error handling and logging
-- Backward compatibility maintenance
+3. **Export profile**
+   ```python
+   # Update app/agents/__init__.py
+   from .new_agent.profile import new_agent_profile
+   __all__.append("new_agent_profile")
+   ```
 
-## Dependencies
+### Code Quality
 
-- **CrewAI**: Core agent framework
-- **Chainlit**: Web interface for user interactions
-- **Pydantic**: Data validation and settings management
-- **Python-dotenv**: Environment variable management
+- **Type Safety**: Full type hints with Pydantic validation
+- **Error Handling**: Comprehensive error handling and logging
+- **Documentation**: Detailed docstrings and inline comments
+- **Testing**: Test agent switching and streaming functionality
 
-## Running the Application
+## 📦 Dependencies
 
-1. Install dependencies: `pip install -r requirements.txt`
-2. Set up environment variables in `.env` file
-3. Run the application: `chainlit run main.py`
+### Core Dependencies
+- **pydantic-ai-slim[openai]**: Modern AI framework
+- **chainlit**: Interactive web interface
+- **llama-index-core**: Memory and session management
+- **pydantic**: Data validation and settings
+- **python-dotenv**: Environment configuration
 
-## Contributing
+### Development Dependencies
+- **UV**: Fast Python package manager
+- **Python 3.13+**: Latest Python features
 
-When contributing to this project:
+## 🚀 Deployment
 
-1. Follow the established architectural patterns
-2. Maintain comprehensive documentation
-3. Include appropriate error handling
-4. Add type hints and validation
-5. Test your changes thoroughly
-6. Respect existing parameters and interfaces
+### Local Development
+```bash
+chainlit run main.py --port 8000
+```
 
-The codebase is designed for maintainability and extensibility. Please ensure any changes align with these principles.
+### Production Deployment
+- Configure environment variables
+- Use process manager (PM2, systemd)
+- Set up reverse proxy (nginx)
+- Enable HTTPS for production
+
+## 🤝 Contributing
+
+1. **Fork the repository**
+2. **Create feature branch**: `git checkout -b feature/new-agent`
+3. **Follow code standards**: Type hints, docstrings, error handling
+4. **Test thoroughly**: Ensure agent switching works correctly
+5. **Submit pull request**: With detailed description
+
+### Development Guidelines
+
+- Maintain backward compatibility
+- Follow PydanticAI patterns
+- Preserve session management functionality
+- Update documentation for new features
+- Test agent switching and streaming
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🆘 Support
+
+For issues and questions:
+- Create GitHub issues for bugs
+- Use discussions for questions
+- Check existing documentation
+
+---
+
+**Built with ❤️ using PydanticAI, Chainlit, and OpenRouter**

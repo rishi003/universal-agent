@@ -1,154 +1,192 @@
-"""Multi-agent workflow implementation using LlamaIndex AgentWorkflow.
+"""Single unified workflow implementation using PydanticAI.
 
-This module implements a dynamic multi-agent system that can handle
-multiple agents collaborating to complete tasks.
+This module implements a unified agent system that handles all agents
+and manages session-based agent switching with @ notation.
 """
 
-from llama_index.core.agent.workflow import (
-    FunctionAgent,
-    AgentWorkflow,
-    AgentOutput,
-    ToolCall,
-    ToolCallResult,
+from app.llm import model
+from app.agents.base_implementation import create_pydantic_agent
+from typing import Tuple, Optional
+import re
+
+# Import all agent profiles
+from app.agents.ideation_agent.profile import ideation_agent_profile
+from app.agents.idea_analysis_agent.profile import idea_analysis_agent_profile
+from app.agents.manager_agent.profile import manager_agent_profile
+from app.agents.product_manager_agent.profile import product_manager_agent_profile
+from app.agents.strategic_advisor_agent.profile import strategic_advisor_agent_profile
+from app.agents.landing_page_designer_agent.profile import (
+    landing_page_designer_agent_profile,
 )
-from llama_index.core.workflow import Context
-from llama_index.core.memory import Memory
-from llama_index.core.llms import ChatMessage, MessageRole
-from app.llm import llm
-from typing import List
-from .agent_factory import create_agents
+from app.agents.cto_agent.profile import cto_agent_profile
+from app.agents.advertising_strategist_agent.profile import (
+    advertising_strategist_agent_profile,
+)
 
 
-# State management tools
-async def save_ideas(ctx: Context, ideas: str, ideas_title: str) -> str:
-    """Tool for saving generated ideas to the workflow state."""
-    current_state = await ctx.get("state")
-    if "generated_ideas" not in current_state:
-        current_state["generated_ideas"] = {}
-    current_state["generated_ideas"][ideas_title] = ideas
-    await ctx.set("state", current_state)
-    return "Ideas saved successfully."
-
-
-async def save_analysis(ctx: Context, analysis: str) -> str:
-    """Tool for saving idea analysis to the workflow state."""
-    current_state = await ctx.get("state")
-    current_state["analysis_result"] = analysis
-    await ctx.set("state", current_state)
-    return "Analysis saved successfully."
-
-
-class UniversalAgentWorkflow:
+class AgentWorkflow:
     """
-    Dynamic multi-agent workflow system.
+    Unified agent workflow system using PydanticAI.
 
-    This class creates and manages a multi-agent workflow that can be
-    easily extended with new agents.
+    This class manages all agents in a single workflow and handles
+    session-based agent switching with @ notation parsing.
     """
 
     def __init__(self):
-        """Initialize the multi-agent workflow."""
-        self.agents = create_agents(llm, [save_ideas, save_analysis])
-        self.workflow = self._create_workflow()
+        """Initialize the unified agent workflow."""
+        self.agents = self._create_all_agents()
+        self.default_agent = "manager"
 
-    def _create_workflow(self) -> AgentWorkflow:
-        """Create the AgentWorkflow with ManagerAgent as the root."""
-        return AgentWorkflow(
-            agents=self.agents,
-            root_agent="ManagerAgent",  # Start with the manager
-            initial_state={
-                "plan": "No plan yet.",
-                "generated_ideas": {},
-                "analysis_result": "Not analyzed yet.",
-                "user_request": "",
-            },
-        )
+    def _create_all_agents(self) -> dict:
+        """Create all PydanticAI agents."""
+        return {
+            "manager": create_pydantic_agent(manager_agent_profile, model),
+            "ideation": create_pydantic_agent(ideation_agent_profile, model),
+            "ideaanalysis": create_pydantic_agent(idea_analysis_agent_profile, model),
+            "productmanager": create_pydantic_agent(
+                product_manager_agent_profile, model
+            ),
+            "strategicadvisor": create_pydantic_agent(
+                strategic_advisor_agent_profile, model
+            ),
+            "landingpage": create_pydantic_agent(
+                landing_page_designer_agent_profile, model
+            ),
+            "cto": create_pydantic_agent(cto_agent_profile, model),
+            "advertisingstrategist": create_pydantic_agent(
+                advertising_strategist_agent_profile, model
+            ),
+        }
 
-    async def run_streaming(self, user_msg: str, memory: Memory = None) -> str:
+    def parse_agent_switch(self, message: str) -> Tuple[Optional[str], str]:
         """
-        Run the multi-agent workflow with streaming events.
+        Parse @ notation from message.
 
         Args:
-            user_msg: The user's request
-            chat_history: List of previous chat messages
+            message: The user message that may contain @ notation
 
         Returns:
-            The final result from the workflow
+            Tuple of (agent_name, cleaned_message)
+            agent_name is None if no valid @ notation found
         """
+        message = message.strip()
 
-        # Update initial state with user request and chat history
-        handler = self.workflow.run(user_msg=user_msg, memory=memory)
+        if not message.startswith("@"):
+            return None, message
 
-        current_agent = None
-        final_response = ""
+        # Split on first space to get @agent and remainder
+        parts = message.split(" ", 1)
+        agent_part = parts[0][1:].lower()  # Remove @ and lowercase
+        remainder = parts[1] if len(parts) > 1 else ""
 
-        print(f"\n🚀 Starting Multi-Agent Workflow")
-        print(f"📝 User Request: {user_msg}")
-        print("=" * 60)
+        # Check if it's a valid agent
+        if agent_part in self.agents:
+            return agent_part, remainder.strip()
 
-        async for event in handler.stream_events():
-            if (
-                hasattr(event, "current_agent_name")
-                and event.current_agent_name != current_agent
-            ):
-                current_agent = event.current_agent_name
-                print(f"\n{'='*50}")
-                print(f"🤖 Agent: {current_agent}")
-                print(f"{'='*50}")
-            elif isinstance(event, AgentOutput):
-                if event.response.content:
-                    print(f"📤 Output: {event.response.content}")
-                    final_response = event.response.content
-                    # Add agent response to memory
-                    memory.put(
-                        ChatMessage(role=MessageRole.ASSISTANT, content=final_response)
-                    )
-                if event.tool_calls:
-                    print(
-                        "🛠️  Planning to use tools:",
-                        [call.tool_name for call in event.tool_calls],
-                    )
-            elif isinstance(event, ToolCallResult):
-                print(f"🔧 Tool Result ({event.tool_name}):")
-                print(f"  Arguments: {event.tool_kwargs}")
-                print(f"  Output: {event.tool_output}")
-            elif isinstance(event, ToolCall):
-                print(f"🔨 Calling Tool: {event.tool_name}")
-                print(f"  With arguments: {event.tool_kwargs}")
+        # Invalid agent, return original message
+        return None, message
 
-        # Get the final result
-        result = await handler
-        print(f"\n✅ Workflow completed!")
-        print("=" * 60)
-
-        return final_response or str(result)
-
-    def add_agent(self, agent: FunctionAgent) -> None:
+    def get_agent(self, agent_name: str):
         """
-        Add a new agent to the workflow dynamically.
+        Get agent by name, fallback to default agent.
 
         Args:
-            agent: The FunctionAgent to add
-        """
-        self.agents.append(agent)
-        # Recreate workflow with new agent
-        self.workflow = AgentWorkflow(
-            agents=self.agents,
-            root_agent=self.workflow.root_agent,
-            initial_state=self.workflow.initial_state,
-        )
-        print(f"✅ Added agent: {agent.name}")
+            agent_name: Name of the agent to retrieve
 
-    def list_agents(self) -> List[str]:
-        """Get list of all agent names in the workflow."""
-        return [agent.name for agent in self.agents]
+        Returns:
+            PydanticAI Agent instance
+        """
+        return self.agents.get(agent_name, self.agents[self.default_agent])
+
+    def get_agent_profile_name(self, agent_name: str) -> str:
+        """Get human-readable agent name for display."""
+        profile_map = {
+            "manager": "Manager Agent",
+            "ideation": "Ideation Agent",
+            "ideaanalysis": "Idea Analysis Agent",
+            "productmanager": "Product Manager Agent",
+            "strategicadvisor": "Strategic Advisor Agent",
+            "landingpage": "Landing Page Designer Agent",
+            "cto": "CTO Agent",
+            "advertisingstrategist": "Advertising Strategist Agent",
+        }
+        return profile_map.get(agent_name, "Unknown Agent")
+
+    async def run_streaming(
+        self, message: str, current_agent: str, message_history: list = None
+    ) -> Tuple[str, str]:
+        """
+        Execute the workflow with streaming events.
+
+        Args:
+            message: The user's message
+            current_agent: Currently active agent name
+            message_history: List of PydanticAI ModelMessage objects for conversation history
+
+        Returns:
+            Tuple of (response, new_current_agent)
+        """
+        # Parse for agent switching
+        switch_agent, cleaned_message = self.parse_agent_switch(message)
+
+        # Determine which agent to use
+        if switch_agent:
+            # User is switching agents
+            target_agent_name = switch_agent
+            user_input = cleaned_message
+            print(f"\n🔄 Switching to {self.get_agent_profile_name(target_agent_name)}")
+        else:
+            # Continue with current agent
+            target_agent_name = current_agent
+            user_input = message
+
+        # Get the target agent
+        agent = self.get_agent(target_agent_name)
+
+        # Display agent info
+        print(f"\n{'='*50}")
+        print(f"🤖 Active Agent: {self.get_agent_profile_name(target_agent_name)}")
+        print(f"{'='*50}\n")
+
+        # Use message_history directly (already in PydanticAI format)
+        if message_history is None:
+            message_history = []
+
+        try:
+            # Execute with PydanticAI streaming
+            async with agent.run_stream(
+                user_input, message_history=message_history
+            ) as result:
+                full_response = ""
+                async for text in result.stream_text():
+                    print(text, end="", flush=True)
+                    full_response = text
+
+                print(
+                    f"\n\n✅ {self.get_agent_profile_name(target_agent_name)} completed!"
+                )
+                print("=" * 60)
+
+                return full_response, target_agent_name
+
+        except Exception as e:
+            error_msg = (
+                f"Error in {self.get_agent_profile_name(target_agent_name)}: {str(e)}"
+            )
+            print(f"❌ {error_msg}")
+            return error_msg, target_agent_name
+
+    def list_agents(self) -> list[str]:
+        """Get list of all available agent names."""
+        return list(self.agents.keys())
+
+    def list_agent_display_names(self) -> list[str]:
+        """Get list of all available agent display names."""
+        return [self.get_agent_profile_name(name) for name in self.agents.keys()]
 
 
 # Global workflow instance
-universal_workflow = UniversalAgentWorkflow()
+agent_workflow = AgentWorkflow()
 
 
-__all__ = [
-    "UniversalAgentWorkflow",
-    "universal_workflow",
-]
+__all__ = ["AgentWorkflow", "agent_workflow"]

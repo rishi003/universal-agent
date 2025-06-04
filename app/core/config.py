@@ -15,7 +15,7 @@ class Config(BaseSettings):
     )
 
     model_name: str = Field(
-        default="gpt-4.1",
+        default="openai/gpt-4.1",
         description="The name of the OpenAI model to use for generating responses.",
     )
     temperature: float = Field(

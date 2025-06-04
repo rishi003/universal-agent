@@ -1,17 +1,16 @@
 """Main application entry point for the Universal Agent.
 
 This module sets up the Chainlit interface and handles user interactions
-with the various agents available in the system.
+with the unified agent workflow using PydanticAI.
 """
 
 import chainlit as cl
 from chainlit.types import ThreadDict
 from dotenv import load_dotenv
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 import logging
-from app.agents import universal_workflow, agent_workflows
-from llama_index.core.memory import Memory
-from llama_index.core.llms import ChatMessage, MessageRole
+from app.agents import agent_workflow
+from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, TextPart
 
 # Configure logging
 logging.basicConfig(
@@ -21,6 +20,45 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
+
+
+@cl.set_starters
+async def set_starters():
+    """Set starter suggestions for users to quickly begin conversations."""
+    return [
+        cl.Starter(
+            label="💡 Generate Startup Ideas",
+            message="@ideation Give me 5 innovative startup ideas for sustainable technology that could solve real-world problems",
+        ),
+        cl.Starter(
+            label="📊 Analyze Business Idea",
+            message="@analysis I have an idea for a meal planning app that uses AI to suggest recipes based on dietary restrictions and available ingredients. Can you evaluate its market potential?",
+        ),
+        cl.Starter(
+            label="🏗️ Plan Technical Architecture",
+            message="@cto I need to build a mobile app that handles real-time chat, user profiles, and file sharing. What technology stack would you recommend for scalability?",
+        ),
+        cl.Starter(
+            label="📋 Create Product Roadmap",
+            message="@product Help me create a 6-month product roadmap for a fitness tracking app with social features. What should be the priority features?",
+        ),
+        cl.Starter(
+            label="🎯 Develop Marketing Strategy",
+            message="@advertising I'm launching a B2B SaaS tool for project management. Create a comprehensive marketing strategy to reach small to medium businesses",
+        ),
+        cl.Starter(
+            label="🎨 Design Landing Page",
+            message="@landing I need a high-converting landing page for an AI writing assistant. What elements should I include and how should I structure it?",
+        ),
+        cl.Starter(
+            label="📈 Strategic Business Planning",
+            message="@strategic I want to enter the e-commerce market with handmade crafts. Help me develop a competitive strategy and positioning plan",
+        ),
+        cl.Starter(
+            label="🔄 Coordinate Complex Project",
+            message="@manager I'm building a fintech startup with mobile app, web dashboard, and API. Help me create a comprehensive project plan and coordinate the development phases",
+        ),
+    ]
 
 
 @cl.oauth_callback
@@ -49,8 +87,10 @@ def oauth_callback(
 async def on_chat_start():
     """Initialize the chat session."""
     logger.info("Starting new chat session")
-    memory = Memory.from_defaults(session_id="chainlit_session", token_limit=40000)
-    cl.user_session.set("memory", memory)
+    # Initialize empty message history for PydanticAI
+    message_history: List[ModelMessage] = []
+    cl.user_session.set("message_history", message_history)
+    cl.user_session.set("current_agent", "manager")  # Default to manager
 
 
 @cl.on_message
@@ -64,22 +104,22 @@ async def on_chat_resume(thread: ThreadDict):
     """Handle resuming a chat session."""
     logger.info(f"Resuming chat session for thread")
 
-    memory = Memory.from_defaults(session_id=thread.get("id"), token_limit=40000)
+    # Initialize message history for PydanticAI
+    message_history: List[ModelMessage] = []
     root_messages = [m for m in thread["steps"] if m["parentId"] == None]
 
     for message in root_messages:
         if message["type"] == "user_message":
-            memory.put(ChatMessage(role=MessageRole.USER, content=message["output"]))
+            # Add user message to history
+            message_history.append(ModelRequest.user_text_prompt(message["output"]))
         else:
-            memory.put(
-                ChatMessage(role=MessageRole.ASSISTANT, content=message["output"])
+            # Add assistant message to history
+            message_history.append(
+                ModelResponse(parts=[TextPart(content=message["output"])])
             )
 
-    cl.user_session.set("memory", memory)
-
-    await cl.Message(
-        content="Welcome back! Resuming your previous conversation."
-    ).send()
+    cl.user_session.set("message_history", message_history)
+    cl.user_session.set("current_agent", "manager")  # Reset to manager on resume
 
 
 async def process_message(message: cl.Message):
@@ -91,29 +131,24 @@ async def process_message(message: cl.Message):
         processing_msg = cl.Message(content="🤖 Processing your request...")
         await processing_msg.send()
 
-        # Get memory
-        memory = cl.user_session.get("memory")
+        # Get message history and current agent from session
+        message_history = cl.user_session.get("message_history", [])
+        current_agent = cl.user_session.get("current_agent", "manager")
 
-        # Add current message to memory
-        memory.put(ChatMessage(role=MessageRole.USER, content=message.content))
+        # Add current user message to history
+        message_history.append(ModelRequest.user_text_prompt(message.content))
 
-        content = message.content.strip()
-        target_agent = None
-        user_input = content
-        if content.startswith("@"):  # allow @agent prefix
-            prefix, _, remainder = content.partition(" ")
-            key = prefix[1:].lower()
-            if key in agent_workflows:
-                target_agent = agent_workflows[key]
-                user_input = remainder.strip() or ""
+        # Use the unified workflow to process the message
+        response, new_agent = await agent_workflow.run_streaming(
+            message.content, current_agent, message_history
+        )
 
-        if target_agent:
-            response = await target_agent.run_streaming(user_input, memory)
-        else:
-            response = await universal_workflow.run_streaming(user_input, memory)
+        # Update the current agent in session if it changed
+        cl.user_session.set("current_agent", new_agent)
 
-        # Add response to memory
-        memory.put(ChatMessage(role=MessageRole.ASSISTANT, content=response))
+        # Add response to message history
+        message_history.append(ModelResponse(parts=[TextPart(content=response)]))
+        cl.user_session.set("message_history", message_history)
 
         # Update the processing message with the final response
         processing_msg.content = response

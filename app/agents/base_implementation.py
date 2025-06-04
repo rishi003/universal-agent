@@ -1,166 +1,136 @@
-"""Base implementation utilities for agents using LlamaIndex AgentWorkflow.
+"""Base implementation utilities for agents using PydanticAI.
 
 This module provides utility functions and patterns for creating
-agents consistently across the application using LlamaIndex AgentWorkflow.
+agents consistently across the application using PydanticAI.
 """
 
-from llama_index.core.agent.workflow import (
-    FunctionAgent,
-    AgentWorkflow,
-    AgentOutput,
-    ToolCallResult,
-    ToolCall,
-)
+from pydantic_ai import Agent
 from app.core.types import AgentProfile
-from app.llm import llm
-from llama_index.core.memory import Memory
-from llama_index.core.llms import ChatMessage, MessageRole
-from typing import Any, List, Optional
+from app.llm import model
+from typing import Any, Optional
 import asyncio
 
 
-def create_function_agent(
+def create_pydantic_agent(
     profile: AgentProfile,
-    llm_instance: Any = None,
-    tools: Optional[List] = None,
-    can_handoff_to: Optional[List[str]] = None,
-) -> FunctionAgent:
+    model_instance: Any = None,
+) -> Agent:
     """
-    Create a LlamaIndex FunctionAgent with the given profile.
+    Create a PydanticAI Agent with the given profile.
 
     This function provides a consistent way to create agents
     while reducing code duplication across agent modules.
 
     Args:
         profile: The agent profile containing role, goal, and backstory
-        llm_instance: Optional LLM instance. If not provided, uses default llm
-        tools: Optional list of tools for the agent
-        can_handoff_to: Optional list of agent names this agent can hand off to
+        model_instance: Optional model instance. If not provided, uses default model
 
     Returns:
-        Configured LlamaIndex FunctionAgent instance
+        Configured PydanticAI Agent instance
     """
-    if llm_instance is None:
-        llm_instance = llm
+    if model_instance is None:
+        model_instance = model
 
-    return FunctionAgent(
-        name=profile.role.replace(" ", ""),  # Remove spaces for agent name
-        description=profile.goal,
+    return Agent(
+        model_instance,
         system_prompt=profile.backstory,
-        llm=llm_instance,
-        tools=tools or [],
-        can_handoff_to=can_handoff_to or [],
     )
 
 
-class StreamingAgentWorkflow:
+class StreamingAgentWrapper:
     """
-    Wrapper class for AgentWorkflow that provides streaming execution.
+    Wrapper class for PydanticAI Agent that provides consistent streaming execution.
 
-    This class creates an AgentWorkflow and provides methods to run it
-    with streaming events, following the LlamaIndex documentation pattern.
+    This class wraps a PydanticAI Agent and provides methods to run it
+    with streaming events, maintaining compatibility with the existing interface.
     """
 
-    def __init__(self, profile: AgentProfile, llm_instance: Any = None):
+    def __init__(self, profile: AgentProfile, model_instance: Any = None):
         """
-        Initialize the StreamingAgentWorkflow with a profile.
+        Initialize the StreamingAgentWrapper with a profile.
 
         Args:
             profile: The agent profile containing role, goal, and backstory
-            llm_instance: Optional LLM instance. If not provided, uses default llm
+            model_instance: Optional model instance. If not provided, uses default model
         """
         self.profile = profile
-        self.llm_instance = llm_instance or llm
+        self.model_instance = model_instance or model
+        self.agent = create_pydantic_agent(profile, model_instance)
 
-        # Create a single FunctionAgent
-        self.function_agent = create_function_agent(profile, llm_instance)
-
-        # Create an AgentWorkflow with this single agent
-        self.workflow = AgentWorkflow(
-            agents=[self.function_agent],
-            root_agent=self.function_agent.name,
-            initial_state={},
-        )
-
-    async def run_streaming(self, input_data: str, memory: Memory | None = None) -> str:
+    async def run_streaming(self, input_data: str, message_history: list = None) -> str:
         """
-        Execute the agent workflow with streaming events.
+        Execute the agent with streaming events.
 
         Args:
             input_data: The input data for the agent to process
+            message_history: List of PydanticAI ModelMessage objects for conversation history
 
         Returns:
             The final agent response
         """
-        handler = self.workflow.run(user_msg=input_data, memory=memory)
+        print(f"\n{'='*50}")
+        print(f"🤖 Agent: {self.profile.role}")
+        print(f"{'='*50}\n")
 
-        current_agent = None
-        final_response = ""
+        # Use message_history directly (already in PydanticAI format)
+        if message_history is None:
+            message_history = []
 
-        async for event in handler.stream_events():
-            if (
-                hasattr(event, "current_agent_name")
-                and event.current_agent_name != current_agent
-            ):
-                current_agent = event.current_agent_name
-                print(f"\n{'='*50}")
-                print(f"🤖 Agent: {current_agent}")
-                print(f"{'='*50}\n")
-            elif isinstance(event, AgentOutput):
-                if event.response.content:
-                    print("📤 Output:", event.response.content)
-                    final_response = event.response.content
-                    if memory is not None:
-                        memory.put(
-                            ChatMessage(role=MessageRole.ASSISTANT, content=final_response)
-                        )
-                if event.tool_calls:
-                    print(
-                        "🛠️  Planning to use tools:",
-                        [call.tool_name for call in event.tool_calls],
+        try:
+            # Use PydanticAI streaming
+            async with self.agent.run_stream(
+                input_data, message_history=message_history
+            ) as result:
+                full_response = ""
+                async for text in result.stream_text():
+                    print(text, end="", flush=True)
+                    full_response = (
+                        text  # stream_text() provides complete text each time
                     )
-            elif isinstance(event, ToolCallResult):
-                print(f"🔧 Tool Result ({event.tool_name}):")
-                print(f"  Arguments: {event.tool_kwargs}")
-                print(f"  Output: {event.tool_output}")
-            elif isinstance(event, ToolCall):
-                print(f"🔨 Calling Tool: {event.tool_name}")
-                print(f"  With arguments: {event.tool_kwargs}")
 
-        # Get the final result
-        result = await handler
-        return final_response or str(result)
+                print("\n")  # New line after streaming
+                print(f"✅ {self.profile.role} completed!")
+                print("=" * 60)
 
-    def _run_sync(self, input_data: str, memory: Memory | None = None) -> str:
+                return full_response
+
+        except Exception as e:
+            error_msg = f"Error in {self.profile.role}: {str(e)}"
+            print(f"❌ {error_msg}")
+            return error_msg
+
+    def _run_sync(self, input_data: str, message_history: list = None) -> str:
         """
-        Helper method to run workflow synchronously.
+        Helper method to run agent synchronously.
         """
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            result = loop.run_until_complete(self.run_streaming(input_data, memory))
+            result = loop.run_until_complete(
+                self.run_streaming(input_data, message_history)
+            )
             return result
         finally:
             loop.close()
 
 
 def create_agent(
-    profile: AgentProfile, llm_instance: Any = None
-) -> StreamingAgentWorkflow:
+    profile: AgentProfile, model_instance: Any = None
+) -> StreamingAgentWrapper:
     """
-    Create a StreamingAgentWorkflow with the given profile.
+    Create a StreamingAgentWrapper with the given profile.
 
     This function maintains backward compatibility with the existing
-    create_agent interface while using LlamaIndex AgentWorkflow.
+    create_agent interface while using PydanticAI under the hood.
 
     Args:
         profile: The agent profile containing role, goal, and backstory
-        llm_instance: Optional LLM instance. If not provided, uses default llm
+        model_instance: Optional model instance. If not provided, uses default model
 
     Returns:
-        Configured StreamingAgentWorkflow instance
+        Configured StreamingAgentWrapper instance
     """
-    return StreamingAgentWorkflow(profile, llm_instance)
+    return StreamingAgentWrapper(profile, model_instance)
 
 
-__all__ = ["create_agent", "create_function_agent", "StreamingAgentWorkflow"]
+__all__ = ["create_agent", "create_pydantic_agent", "StreamingAgentWrapper"]
