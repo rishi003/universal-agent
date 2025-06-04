@@ -13,6 +13,8 @@ from llama_index.core.agent.workflow import (
 )
 from app.core.types import AgentProfile
 from app.llm import llm
+from llama_index.core.memory import Memory
+from llama_index.core.llms import ChatMessage, MessageRole
 from typing import Any, List, Optional
 import asyncio
 
@@ -80,7 +82,7 @@ class StreamingAgentWorkflow:
             initial_state={},
         )
 
-    async def run_streaming(self, input_data: str) -> str:
+    async def run_streaming(self, input_data: str, memory: Memory | None = None) -> str:
         """
         Execute the agent workflow with streaming events.
 
@@ -90,7 +92,7 @@ class StreamingAgentWorkflow:
         Returns:
             The final agent response
         """
-        handler = self.workflow.run(user_msg=input_data)
+        handler = self.workflow.run(user_msg=input_data, memory=memory)
 
         current_agent = None
         final_response = ""
@@ -108,6 +110,10 @@ class StreamingAgentWorkflow:
                 if event.response.content:
                     print("📤 Output:", event.response.content)
                     final_response = event.response.content
+                    if memory is not None:
+                        memory.put(
+                            ChatMessage(role=MessageRole.ASSISTANT, content=final_response)
+                        )
                 if event.tool_calls:
                     print(
                         "🛠️  Planning to use tools:",
@@ -125,14 +131,14 @@ class StreamingAgentWorkflow:
         result = await handler
         return final_response or str(result)
 
-    def _run_sync(self, input_data: str) -> str:
+    def _run_sync(self, input_data: str, memory: Memory | None = None) -> str:
         """
         Helper method to run workflow synchronously.
         """
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            result = loop.run_until_complete(self.run_streaming(input_data))
+            result = loop.run_until_complete(self.run_streaming(input_data, memory))
             return result
         finally:
             loop.close()

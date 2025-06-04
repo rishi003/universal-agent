@@ -9,7 +9,7 @@ from chainlit.types import ThreadDict
 from dotenv import load_dotenv
 from typing import Dict, Optional
 import logging
-from app.agents import universal_workflow
+from app.agents import universal_workflow, agent_workflows
 from llama_index.core.memory import Memory
 from llama_index.core.llms import ChatMessage, MessageRole
 
@@ -97,8 +97,20 @@ async def process_message(message: cl.Message):
         # Add current message to memory
         memory.put(ChatMessage(role=MessageRole.USER, content=message.content))
 
-        # Use the ManagerAgent to process the message with streaming
-        response = await universal_workflow.run_streaming(message.content, memory)
+        content = message.content.strip()
+        target_agent = None
+        user_input = content
+        if content.startswith("@"):  # allow @agent prefix
+            prefix, _, remainder = content.partition(" ")
+            key = prefix[1:].lower()
+            if key in agent_workflows:
+                target_agent = agent_workflows[key]
+                user_input = remainder.strip() or ""
+
+        if target_agent:
+            response = await target_agent.run_streaming(user_input, memory)
+        else:
+            response = await universal_workflow.run_streaming(user_input, memory)
 
         # Add response to memory
         memory.put(ChatMessage(role=MessageRole.ASSISTANT, content=response))
